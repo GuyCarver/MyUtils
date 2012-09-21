@@ -97,19 +97,46 @@ class OpenMyFileCommand( sublime_plugin.WindowCommand ) :
   def run( self, file ) :
     self.window.open_file(file)
 
+# class RepitCommand( sublime_plugin.TextCommand ) :
+#   def run( self, edit ) :
+#     vw = self.view
+#     vw.end_edit(edit)
+
+#     edit_begin = vw.begin_edit("repit")
+#     try:
+#       lines = vw.sel()
+#       numLines = len(lines)
+#       if numLines > 1 :
+#         reptext = vw.substr(lines[0])
+#         for i in range(1, numLines) :
+#           vw.insert(edit, lines[i].begin(), reptext)
+#     finally:
+#       vw.end_edit(edit_begin)
+
 class RepitCommand( sublime_plugin.TextCommand ) :
   def run( self, edit ) :
     vw = self.view
-    vw.end_edit(edit)
 
     edit_begin = vw.begin_edit("repit")
     try:
       lines = vw.sel()
-      numLines = len(lines)
-      if numLines > 1 :
-        reptext = vw.substr(lines[0])
-        for i in range(1, numLines) :
-          vw.insert(edit, lines[i].begin(), reptext)
+      for s in lines :
+        rc1 = vw.rowcol(s.a)
+        rc2 = vw.rowcol(s.b)
+        if (rc1[0] != rc2[0]) :
+          a = s.a
+          if (rc1[0] > rc2[0]) :
+            rc1, rc2 = rc2, rc1
+            a = s.b
+          pnt = vw.text_point(rc1[0], rc2[1])
+          r = sublime.Region(a, pnt)
+          str = vw.substr(r)
+          for i in range(rc1[0] + 1, rc2[0] + 1) :
+            pnt = vw.text_point(i, rc1[1])
+            # Make sure there is room on the line for the insert.
+            ln = vw.line(vw.text_point(i, 0))
+            if ln.b >= pnt :
+              vw.insert(edit, pnt, str)
     finally:
       vw.end_edit(edit_begin)
 
@@ -207,6 +234,13 @@ def CountFromRight( aTabSize, aLine, aCount ) :
     if aCount > 0 :
       break;
 
+    # If we ran into something we can't remove try to add a space or tab back
+    #  in and exit.  We can't remove as much as we want.
+    if (s != '\t' and s != ' ') :
+      if len > 0 :
+        len -= 1
+      break;
+
     aCount += (aTabSize if s == '\t' else 1)
     len += 1
 
@@ -258,9 +292,9 @@ class CommentEolCommand( sublime_plugin.TextCommand ) :
               count = (target + spcs - 2) / spcs
 #              print "%d / %d = %d" % (target, spcs, count)
 
-              #Insert number of tabs needed to reach target.
-              strng = "\t" * count + cmnt
-              vw.insert(edit, line.b, strng)
+            #Insert number of tabs needed to reach target.
+            strng = "\t" * count + cmnt
+            vw.insert(edit, line.b, strng)
           else:
             #todo: move the comment in the line to the desired spot.
             cmntCountStr = lineText[:rcomment]
@@ -268,6 +302,7 @@ class CommentEolCommand( sublime_plugin.TextCommand ) :
 #            print "%s width %d" % (cmntCountStr, c)
             target = column - c
             if target < 0 :
+              print "< %d" % target
               #Figure out how many characters to remove.
               #Loop backwards through the cmntCountStr until
               removeChars = CountFromRight(tab_size, cmntCountStr, target)
@@ -276,6 +311,7 @@ class CommentEolCommand( sublime_plugin.TextCommand ) :
               remR = sublime.Region(cmntPnt - removeChars, cmntPnt)
               vw.replace(edit, remR, "")
             elif target > 0 :
+              print "> %d" % target
               count = (target - 1) / spcs
 
               #Insert number of tabs needed to reach target.
@@ -298,30 +334,4 @@ class ShowFileNameCommand( sublime_plugin.TextCommand ) :
 
   def TurnOff( self ) :
     self.view.erase_status("fname")
-
-class TestTextCommand( sublime_plugin.TextCommand ) :
-  def run( self, edit ) :
-    vw = self.view
-    for s in vw.sel() :
-      lines = vw.lines(s)
-      for line in lines :
-        b = vw.rowcol(line.a)
-        e = vw.rowcol(line.b)
-        print "(%d, %d) - (%d, %d)" % (b + e)
-
-class TestWindowCommand( sublime_plugin.WindowCommand ) :
-  def __init__( self, window ) :
-    super(TestWindowCommand, self).__init__(window)
-    self.test = ["g@b.com", "c@y.com", "d@g.com"]
-
-  def run( self ) :
-#    self.window.show_quick_panel(self.test, self.OnDone)
-    self.window.show_input_panel("test", "", self.OnDone, self.OnChange, None)
-
-  def OnDone( self, Input ) :
-    print "Select %s" % Input
-
-  def OnChange( self, Input ) :
-    print "Change %s" % Input
-    Input = "Hello"
 
