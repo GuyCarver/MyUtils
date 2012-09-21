@@ -281,16 +281,16 @@ class CommentEolCommand( sublime_plugin.TextCommand ) :
             # c = LineWidth(vw, line, tab_size)
             c = LineWidth(tab_size, lineText)
             target = column - c
-#            print "%d - %d = %d" % (column, c, target)
+            # print "%d - %d = %d" % (column, c, target)
 
             #Find the end of line and calculate destination column.
             if target <= 0 :
               count = 1
-#              print "1 tab"
+              # print "1 tab"
             else:
               #Round up then sub 1 cuz target is 0 based.
               count = (target + spcs - 2) / spcs
-#              print "%d / %d = %d" % (target, spcs, count)
+              # print "%d / %d = %d" % (target, spcs, count)
 
             #Insert number of tabs needed to reach target.
             strng = "\t" * count + cmnt
@@ -299,19 +299,19 @@ class CommentEolCommand( sublime_plugin.TextCommand ) :
             #todo: move the comment in the line to the desired spot.
             cmntCountStr = lineText[:rcomment]
             c = LineWidth(tab_size, cmntCountStr)
-#            print "%s width %d" % (cmntCountStr, c)
+            # print "%s width %d" % (cmntCountStr, c)
             target = column - c
             if target < 0 :
-              print "< %d" % target
+              # print "< %d" % target
               #Figure out how many characters to remove.
               #Loop backwards through the cmntCountStr until
               removeChars = CountFromRight(tab_size, cmntCountStr, target)
-#              print "Removing %d" % removeChars
+              # print "Removing %d" % removeChars
               cmntPnt = line.a + rcomment
               remR = sublime.Region(cmntPnt - removeChars, cmntPnt)
               vw.replace(edit, remR, "")
             elif target > 0 :
-              print "> %d" % target
+              # print "> %d" % target
               count = (target - 1) / spcs
 
               #Insert number of tabs needed to reach target.
