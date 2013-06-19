@@ -1,4 +1,4 @@
-# Sublime Text 2 MyUtils collection of random functions I use.
+# Sublime Text MyUtils collection of random functions I use.
 
 ## Install
 
