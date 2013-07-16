@@ -112,7 +112,11 @@ def FindParamNames( vw, curline ) :
       paramString = vw.substr(params)
       paramList = paramString.split(",")
       rfparamList = [ r.strip("( ,)\r\n\t") for r in paramList ]
-      paramNames = [ p.split(" ")[1].strip(" *") for p in rfparamList ]
+      print(rfparamList)
+      if len(rfparamList) :
+        paramNames = [ p.split(" ")[1].strip(" *&") for p in rfparamList if len(p)]
+      else:
+        paramNames = None
       return (funcNameRegion, rvalue, paramNames, params)
   return (None, None, None, None)
 
@@ -498,15 +502,17 @@ def SetReadOnly( vw, m ) :
 
 class ToggleReadOnlyCommand( sublime_plugin.TextCommand ) :
   ### Toggle the readonly state of the file and set the view readonly state to match.
-  def run( self, edit ) :
+  def run( self, edit, update = False ) :
     vw = self.view
     fn = vw.file_name()
     if fn :
       try:
         st = os.stat(fn)
         m = st.st_mode
-        m = m ^ stat.S_IWRITE
-        os.chmod(fn, m)
+        #if not just updating the view status then change the file status.
+        if not update :
+          m = m ^ stat.S_IWRITE
+          os.chmod(fn, m)
         SetReadOnly(vw, m)
       except Exception as ex:
         print(ex)
