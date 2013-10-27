@@ -16,5 +16,7 @@
 	{ "keys": ["ctrl+k", "s"], "command": "swap_words" },
 	{ "keys": ["ctrl+;"], "command": "semicolon_end" },
 	{ "keys": ["ctrl+/"], "command": "comment_eol" },
+	{ "keys": ["alt+shift+/"], "command": "copyand_comment" },
+	{ "keys": ["ctrl+p"], "command": "show_project_name" },
 	{ "keys": ["ctrl+f"], "command": "show_file_name" }
 ]

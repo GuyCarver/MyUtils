@@ -112,9 +112,12 @@ def FindParamNames( vw, curline ) :
       paramString = vw.substr(params)
       paramList = paramString.split(",")
       rfparamList = [ r.strip("( ,)\r\n\t") for r in paramList ]
-      print(rfparamList)
+#       print(rfparamList)
       if len(rfparamList) :
-        paramNames = [ p.split(" ")[1].strip(" *&") for p in rfparamList if len(p)]
+        def getname(astr) :
+          sp = astr.split(" ")
+          return "" if len(sp) <= 1 else sp[1].strip(" *&")
+        paramNames = [ getname(p) for p in rfparamList if len(p)]
       else:
         paramNames = None
       return (funcNameRegion, rvalue, paramNames, params)
@@ -307,6 +310,22 @@ class SemicolonEndCommand( sublime_plugin.TextCommand ) :
       else:
         vw.insert(edit, line.b, ";")
 
+class ParenEndCommand( sublime_plugin.TextCommand ) :
+  def run( self, edit ) :
+    vw = self.view
+    for s in vw.sel() :
+      line = vw.line(s)
+      ls = vw.substr(line)
+      print(ls)
+      ip = -1
+      c = ls[ip]
+      if (c == ";") :
+        ns = ls[:ip] + ")" + ls[ip:]
+      else:
+        ns = ls + ")"
+
+      vw.replace(edit, line, ns)
+
 def GetTabSize( view ) :
   return int(view.settings().get('tab_size', 4))
 
@@ -427,10 +446,18 @@ class CommentEolCommand( sublime_plugin.TextCommand ) :
 class ShowFileNameCommand( sublime_plugin.TextCommand ) :
   def run( self, edit ) :
     self.view.set_status("fname", self.view.name() if self.view.name() else self.view.file_name())
-    sublime.set_timeout(self.TurnOff, 10000)
+    sublime.set_timeout(self.TurnOff, 20000)
 
   def TurnOff( self ) :
     self.view.erase_status("fname")
+
+class ShowProjectNameCommand( sublime_plugin.WindowCommand ) :
+  def run( self ) :
+    self.window.active_view().set_status("pname", self.window.project_file_name())
+    sublime.set_timeout(self.TurnOff, 20000)
+
+  def TurnOff( self ) :
+    self.window.active_view().erase_status("pname")
 
 # { "keys": ["shift+f5"], "command": "my_search" },
 # class MySearchCommand( sublime_plugin.TextCommand ) :
@@ -563,3 +590,182 @@ class SwapWordsCommand( sublime_plugin.TextCommand ) :
           edit.replace(rr[1], t0)
 
     vw.erase_regions("swap")
+
+class CopyandCommentCommand( sublime_plugin.TextCommand ) :
+  """ Copy a line and toggle comment on the original """
+  def run( self, edit ) :
+    vw = self.view
+    line = vw.full_line(vw.sel()[0].begin())
+    cstr = vw.substr(line)
+    #Comment out the original line.
+    vw.run_command("toggle_comment",  {"block": False})
+    r, c = vw.rowcol(line.begin())
+    r += 1
+    pnt = vw.text_point(r, 0)
+    #Make a copy of the line.
+    vw.insert(edit, pnt, cstr)
+    vw.sel().clear()
+    vw.sel().add(sublime.Region(pnt))    #Move cursor to line.
+    vw.show(pt)
+
+#The following indent functions are copied from block.py
+#  A change to indented_block() to fix a bug with indentation checking
+#  was made and this needs to be here until that is officially fixed.
+
+def next_line(view, pt):
+    return view.line(pt).b + 1
+
+def prev_line(view, pt):
+    return view.line(pt).a - 1
+
+def is_ws(str):
+    for ch in str:
+        if ch != ' ' and ch != '\t':
+            return False
+    return True
+
+class BlockLinesCommand(sublime_plugin.TextCommand) :
+  def run(self, edit) :
+    vw = self.view
+    sels = vw.sel()
+    for s in sels :
+      if s.empty() :
+        _, c = vw.rowcol(s.a)  #Get the column so we can place the } correctly.
+        l = vw.full_line(s)
+        ss = vw.substr(l)
+        #if not on empty line add 1.
+        if (len(ss) > 1) :
+          vw.insert(edit, s.a, "\n\t")
+        vw.insert(edit, s.a, "{")
+
+        #Loop until we hit an empty line.
+        while True :
+          p = l.b + 1
+          #Make sure we stop at end of file.
+          if p < vw.size() :
+            l = vw.full_line(p)
+            ss = vw.substr(l)
+          else :
+            l = sublime.Region(p, p)
+            ss = ""
+          #If line is emtpy then insert the }
+          if len(ss) <= 1 :
+            ins = ("\t" * c) + "}\n"
+            vw.insert(edit, l.a, ins)
+            break
+          vw.insert(edit, l.a, "\t") #Indent.
+
+class TestIndentCommand( sublime_plugin.TextCommand ) :
+  def run( self, edit ) :
+    vw = self.view
+    r = vw.sel()[0]
+    if r.empty():
+      nl = next_line(vw, r.a)
+      nr = vw.indented_region(nl)
+      ss = vw.substr(nr)
+      print("nr =\n" + ss)
+      if nr.a < nl:
+        nr.a = nl
+
+      this_indent = vw.indentation_level(r.a)
+      next_indent = vw.indentation_level(nl)
+
+      ok = False
+
+      if this_indent + 1 == next_indent:
+        ok = True
+
+      if not ok:
+        prev_indent = vw.indentation_level(prev_line(vw, r.a))
+
+        # Mostly handle the case where the user has just pressed enter, and the
+        # auto indent will update the indentation to something that will trigger
+        # the block behavior when { is pressed
+        line_str = vw.substr(vw.line(r.a))
+        if is_ws(line_str) and len(vw.get_regions("autows")) > 0:
+          if prev_indent + 1 == this_indent and this_indent == next_indent:
+              ok = True
+
+      if ok:
+        # ensure that every line of nr is indented more than nl
+        l = next_line(vw, nr)
+        while l < nr.end():
+          line_str = vw.substr(vw.line(r.a))
+          print("ln = " + line_str)
+          if vw.indentation_level(l) == next_indent:
+            print("Not all lines indented.")
+            return False
+          l = next_line(vw, l)
+        print("Ok")
+        return True
+      else:
+        print("Not ok.")
+        return False
+
+    print("Sel Not Empty.")
+    return False
+
+def indented_block(view, r):
+    if r.empty():
+        nl = next_line(view, r.a)
+        nr = view.indented_region(nl)
+        if nr.a < nl:
+            nr.a = nl
+
+        this_indent = view.indentation_level(r.a)
+        next_indent = view.indentation_level(nl)
+
+        ok = False
+
+        if this_indent + 1 == next_indent:
+            ok = True
+
+        if not ok:
+            prev_indent = view.indentation_level(prev_line(view, r.a))
+
+            # Mostly handle the care where the user has just pressed enter, and the
+            # auto indent will update the indentation to something that will trigger
+            # the block behavior when { is pressed
+            line_str = view.substr(view.line(r.a))
+            if is_ws(line_str) and len(view.get_regions("autows")) > 0:
+                if prev_indent + 1 == this_indent and this_indent == next_indent:
+                    ok = True
+
+        if ok:
+            # ensure that every line of nr is indented more than nl
+            l = next_line(view, nr)
+            while l < nr.end():
+                if view.indentation_level(l) == next_indent:
+                    return False
+                l = next_line(view, l)
+            return True
+
+    return False
+
+class MyBlockContext(sublime_plugin.EventListener):
+    def on_query_context(self, view, key, operator, operand, match_all):
+        if key == "myindented_block":
+            is_all = True
+            is_any = False
+
+            if operator != sublime.OP_EQUAL and operator != sublime.OP_NOT_EQUAL:
+                return False
+
+            for r in view.sel():
+                if operator == sublime.OP_EQUAL:
+                    b = (operand == indented_block(view, r))
+                else:
+                    b = (operand != indented_block(view, r))
+
+                if b:
+                    is_any = True
+                else:
+                    is_all = False
+
+            if match_all:
+                return is_all
+            else:
+                return is_any
+
+        return None
+
