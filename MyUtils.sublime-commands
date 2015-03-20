@@ -1,0 +1,9 @@
+[
+	{ "command": "make_function", "caption": "MyUtils: MakeFunction" },
+	{ "command": "get_class_name", "caption": "MyUtils: GetClassName" },
+	{ "command": "set_class_name", "caption": "MyUtils: SetClassName" },
+	{ "command": "swap_words", "caption": "MyUtils: SwapWords" },
+	{ "command": "my_pick_file", "caption": "MyUtils: PickFile" },
+	{ "command": "toggle_read_only", "caption": "MyUtils: ToggleReadOnly" },
+	{ "command": "show_routines", "caption": "MyUtils: ShowRoutines" }
+]
