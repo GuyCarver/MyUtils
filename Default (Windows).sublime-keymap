@@ -1,8 +1,9 @@
 [
 	{ "keys": ["ctrl+a"], "command": "set_class_name" },
 	{ "keys": ["ctrl+shift+r"], "command": "repit" },
+	{ "keys": ["ctrl+shift+d"], "command": "date_time" },
 	{ "keys": ["alt+o"], "command": "open_selected_files" },
-	{ "keys": ["ctrl+f12"], "command": "open_my_file", "args": {"file": "C:/Users/gcarver/SkyDrive/notes.ida"} },
+	{ "keys": ["ctrl+f12"], "command": "open_my_file", "args": {"file": "C:/Users/gcarver/OneDrive/notes.ida"} },
 	{ "keys": ["ctrl+shift+f12"], "command": "open_my_file", "args": {"file": "u:/notes.ida"} },
 	{ "keys": ["ctrl+shift+g"], "command": "show_routines" },
 	{ "keys": ["shift+browser_favorites"], "command": "show_routines" },

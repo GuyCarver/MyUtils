@@ -33,8 +33,15 @@
 
 import sublime, sublime_plugin
 from xml.dom.minidom import parse, parseString
-import os, stat
+import os, stat, datetime, re
 from Edit.edit import Edit
+
+sets_file = "MyUtils.sublime-settings"
+mu_settings = None
+
+def plugin_loaded(  ) :
+  global mu_settings
+  mu_settings = sublime.load_settings(sets_file)
 
 def CheckTag( aNode, aTag ) :
   return ((len(aNode.childNodes) == 1) and (aNode.childNodes[0].data == aTag))
@@ -61,7 +68,8 @@ class SetClassNameCommand( sublime_plugin.TextCommand ) :
     dicts = prefs.getElementsByTagName("dict")
     vt = FindValueTag(dicts, "TM_CLASS")
     if vt :
-#      print("found entry and setting to " + str(aClass))
+#      print("found entry and setting to " + str(aName))
+#      print(vt.childNodes)
       vt.childNodes[0].data = aName
       file = open(fileName, "w")
       prefs.writexml(file)
@@ -105,14 +113,15 @@ def FindParamNames( vw, curline ) :
   if funcNameRegion :
     rValueRegion = sublime.Region(curline.a, funcNameRegion.a)
     rvalueStr = vw.substr(rValueRegion)
+#    print(vw.substr(funcNameRegion))
     rvalue = rvalueStr.split(" ")[-1]
-#     print("return: " + rvalue)
+#    print("return: " + rvalue)
     params = FindMyRegion(vw, "meta.parens.c", curline)
     if params :
       paramString = vw.substr(params)
       paramList = paramString.split(",")
       rfparamList = [ r.strip("( ,)\r\n\t") for r in paramList ]
-#       print(rfparamList)
+#      print(rfparamList)
       if len(rfparamList) :
         def getname(astr) :
           sp = astr.split(" ")
@@ -120,8 +129,28 @@ def FindParamNames( vw, curline ) :
         paramNames = [ getname(p) for p in rfparamList if len(p)]
       else:
         paramNames = None
+#      print(funcNameRegion)
+#      print(rvalue)
+#      print(paramNames)
+#      print(params)
       return (funcNameRegion, rvalue, paramNames, params)
   return (None, None, None, None)
+
+#funexp = re.compile("(virtual |)(.+ )((.+)::)?(.+)\((.*?)[ &*]?(.*\))( const)?( override|;)?")
+funexp = re.compile("[ \t]*(virtual |)(.+ )((.+)::)?(.+)\( ?(.*)\)( const)?( override|;)?")
+paramexp = re.compile("(const |)(\w+?)[*& ]+(\w*)[, )]+(.*)")
+
+def GetParams( ParamString ) :
+  ps = ParamString
+  pa = []
+  while len(ps) :
+    p = paramexp.match(ps)
+    if (p != None) :
+      pa.append(p.group(3))
+      ps = p.group(4)
+    else:
+      break
+  return pa
 
 class MakeFunctionCommand( sublime_plugin.TextCommand ) :
   def run( self, edit ) :
@@ -129,43 +158,42 @@ class MakeFunctionCommand( sublime_plugin.TextCommand ) :
 
     for sel in vw.sel():
       selLine = vw.line(sel.begin())
+#      FindParamNames(vw, selLine)
 
-      funcNameRegion, rvalue, paramNames, paramRegion = FindParamNames(vw, selLine)
+      match = funexp.search(vw.substr(selLine))
+      if match != None :
+#        print("fungroups: {}".format(match.groups()))
+        grps = match.groups()
+        comline = "///\n///<summary> "
+        if (grps[0]):
+          comline += grps[0].rstrip().upper() + ":"
+        comline += " </summary>\n"
+        if (grps[5]):
+          #Add parameters.
+          pa = GetParams(grps[5])
+          for p in pa :
+            comline += "///<param name=\"" + p + "\">  </param>\n"
+        if (grps[1] and not grps[1] == "void ") :
+          comline += "///<returns> " + grps[1] + "</returns>\n"
+        comline += '///\n'
 
-      if funcNameRegion :
-        if vw.substr(paramRegion.end()) == ';' :
-          vw.erase(edit, sublime.Region(paramRegion.end(), paramRegion.end() + 1))
-
-        #todo: Search downward until we find an empty line.  Everything between that and our current
-        # position is function body.
-        vw.insert(edit, paramRegion.b, "\n{\n\t\n}")
-
-        curLine, _ = vw.rowcol(sel.begin())
-        cname = GetClassName(vw, sel.begin())
-
-        vw.insert(edit, funcNameRegion.a + 1, cname + '::')
-
-        newline = lambda x  : (vw.line(vw.text_point(curLine + x, 0)), curLine + x)
-
-        curLineSel, curLine = newline((0, -1)[curLine > 0])
-
-        if curLineSel.begin() == curLineSel.end() :
-          vw.insert(edit, curLineSel.begin(), "\n")
-          curLineSel, curLine = newline(1)
-
-        #todo: Search upward until we find an empty line.  Everything between that and the function line is summary.
-
-        vw.insert(edit, curLineSel.begin(), "//\n// <summary> ")
-        curLineSel, curLine = newline(1)
-        pstring = " </summary>"
-        if paramNames and (len(paramNames) > 0):
-          for p in paramNames :
-            pstring += "\n// <param name=" + p + ">  </param>"
-        if rvalue and (rvalue != "void") :
-          pstring += "\n// <returns> " + rvalue + " </returns>"
-        pstring += "\n//"
-
-        vw.insert(edit, curLineSel.end(), pstring)
+        newline = ""
+        newline += grps[1] if grps[1] else "void "
+        if (grps[3]):
+          newline += grps[2]
+        else:
+          cname = GetClassName(vw, sel.begin())
+          if (cname):
+            newline += cname + "::"
+        newline += grps[4] + "( "
+        if (grps[5]):
+          newline += grps[5]
+        newline += " )"
+        if (grps[6]):
+          newline += grps[6]
+        newline += "\n{\n\t//Code\n}\n"
+#        print(newline)
+        vw.replace(edit, selLine, comline + newline)
 
 class OpenSelectedFilesCommand( sublime_plugin.TextCommand ) :
 ### read lines from a view and assume each line is a file name
@@ -188,7 +216,6 @@ class OpenSelectedFilesCommand( sublime_plugin.TextCommand ) :
         else:
           print("Failed to open " + fname)
 
-
 class MyTestCommand( sublime_plugin.WindowCommand ) :
   def run( self ) :
     for s in self.window.settings() :
@@ -197,18 +224,6 @@ class MyTestCommand( sublime_plugin.WindowCommand ) :
 class OpenMyFileCommand( sublime_plugin.WindowCommand ) :
   def run( self, file ) :
     self.window.open_file(file)
-
-# class RepitCommand( sublime_plugin.TextCommand ) :
-#   def run( self, edit ) :
-#     vw = self.view
-
-#     lines = vw.sel()
-#     numLines = len(lines)
-#     if numLines > 1 :
-#       reptext = vw.substr(lines[0])
-#       for i in range(1, numLines) :
-#         vw.insert(edit, lines[i].begin(), reptext)
-
 
 class RepitCommand( sublime_plugin.TextCommand ) :
   def run( self, edit ) :
@@ -310,13 +325,24 @@ class SemicolonEndCommand( sublime_plugin.TextCommand ) :
       else:
         vw.insert(edit, line.b, ";")
 
+class DateTimeCommand( sublime_plugin.TextCommand ) :
+  def run( self, edit ) :
+    vw = self.view
+    t = datetime.datetime.now()
+    tstr = t.strftime("%m/%d/%Y %I:%M %p")
+
+    for s in vw.sel() :
+      if (s.empty()):
+        vw.insert(edit, s.begin(), tstr)
+      else:
+        vw.replace(edit, s, tstr)
+
 class ParenEndCommand( sublime_plugin.TextCommand ) :
   def run( self, edit ) :
     vw = self.view
     for s in vw.sel() :
       line = vw.line(s)
       ls = vw.substr(line)
-      print(ls)
       ip = -1
       c = ls[ip]
       if (c == ";") :
@@ -329,55 +355,70 @@ class ParenEndCommand( sublime_plugin.TextCommand ) :
 def GetTabSize( view ) :
   return int(view.settings().get('tab_size', 4))
 
-def LineWidth( aTabSize, aLine ) :
-  len = 0
+def LineWidth( aComment, aTabSize, aLine ) :
+  '''Convert \t (tabs) into spaces for string length counting.
+     return char pos and column'''
+  ln = 0
+  cs = 0
   for ch in aLine :
+    cs += 1
     if ch == '\t' :
-      len += aTabSize - (len % aTabSize)
+      ln += aTabSize
+      ln -= ln % aTabSize
     else:
-      len += 1
+      ln += 1
 
-  return len
+  return cs, ln
 
-def CountFromRight( aTabSize, aLine, aCount ) :
-  len = 0
+def FromPointToTarget( aTabSize, aLine, aPoint, aTarget ) :
+  pos = aPoint
 
-  for s in aLine[::-1] :
-    if aCount > 0 :
-      break;
+  while aTarget > 0:
+    c = aLine[pos]
+    pos -= 1
+    aTarget -= aTabSize if (c == '\t') else 1
 
-    # If we ran into something we can't remove try to add a space or tab back
-    #  in and exit.  We can't remove as much as we want.
-    if (s != '\t' and s != ' ') :
-      if len > 0 :
-        len -= 1
-      break;
+  return pos - aPoint
 
-    aCount += (aTabSize if s == '\t' else 1)
-    len += 1
+def GetComment( aView ) :
+  point = aView.sel()[0].a
+  shell_vars = aView.meta_info("shellVariables", point)
+  if shell_vars :
+    for v in shell_vars :
+      if v["name"] == "TM_COMMENT_START" :
+        value = v["value"]
+        if value :
+          return value.strip()
 
-  return len
+  return ""
+
+class MyToggleCommentCommand( sublime_plugin.TextCommand ) :
+
+  def run( self, edit ) :
+    vw = self.view
+    cmnt = GetComment(vw)
+    for s in vw.sel() :
+      lines = vw.lines(s)
+
+      lineText = vw.substr(lines[0]);
+
+      if lineText.startswith(cmnt) :
+        for line in lines[::-1] :
+          lineText = vw.substr(line)
+          if lineText.startswith(cmnt) :
+            remR = sublime.Region(line.begin(), line.begin() + len(cmnt))
+            vw.replace(edit, remR, "")
+      else:
+        for line in lines[::-1] :
+          lineText = vw.substr(line)
+          vw.insert(edit, line.begin(), cmnt)
 
 class CommentEolCommand( sublime_plugin.TextCommand ) :
-  def GetComment( self, aPoint ) :
-    shell_vars = self.view.meta_info("shellVariables", aPoint)
-    if shell_vars :
-      for v in shell_vars :
-        if v["name"] == "TM_COMMENT_START" :
-          value = v["value"]
-          if value :
-            return value.strip()
 
-    return ""
-
-  def run( self, edit, column = 57 ) :
+  def run( self, edit, column = 49 ) :
     vw = self.view
-    spcs = vw.settings().get("tab_size", 2)
-
-    cmnt = self.GetComment(vw.sel()[0].a)
-    tab_size = GetTabSize(vw)
-    fst = True
-    fstColumn = 0
+    spcs = GetTabSize(vw);
+    cmnt = GetComment(vw)
 
     for s in vw.sel() :
       lines = vw.lines(s)
@@ -387,61 +428,53 @@ class CommentEolCommand( sublime_plugin.TextCommand ) :
       for line in lines[::-1] :
         lineText = vw.substr(line)
         rcomment = lineText.rfind(cmnt)
+
         #if no comment currently on the line then add one.
         if rcomment == -1 :
-          # c = LineWidth(vw, line, tab_size)
-          c = LineWidth(tab_size, lineText)
+          cs, c = LineWidth(cmnt, spcs, lineText)
           target = column - c
-          # print("{} - {} = {}").format(column, c, target))
+#           print("{} - {} = {}".format(column, c, target))
 
           #Find the end of line and calculate destination column.
-          if target <= 0 :
-            count = 1
-            # print("1 tab")
-          else:
-            #Round up then sub 1 cuz target is 0 based.
-            count = (target + spcs - 2) / spcs
-            # print("{} / {} = {}".format(target, spcs, count))
+          count = 1 if target <= 0 else (target + spcs - 1) / spcs
+#           print("{} / {} = {}".format(target, spcs, count))
 
           #Insert number of tabs needed to reach target.
           strng = "\t" * int(count) + cmnt
           vw.insert(edit, line.b, strng)
-          if fst :
-            fstColumn = vw.line(s).b
-            fst = False
         else:
           #Comment exists, move it to the desired spot.
           cmntCountStr = lineText[:rcomment]
-          c = LineWidth(tab_size, cmntCountStr)
-          # print("{} width {}").format(cmntCountStr, c))
+          #get line pnt, column of comment
+          cs, c = LineWidth(cmnt, spcs, cmntCountStr)
+#          print("{} width {}".format(cmntCountStr, c))
           target = column - c
           if target < 0 :
-            # print("< " + str(target))
-            #Figure out how many characters to remove.
-            #Loop backwards through the cmntCountStr until
-            removeChars = CountFromRight(tab_size, cmntCountStr, target)
-            # print("Removing " + str(removeChars))
-            cmntPnt = line.a + rcomment
-            count = -removeChars
-            remR = sublime.Region(cmntPnt - removeChars, cmntPnt)
+#            print("< {}, {}, {}".format(column, c, target))
+            target = FromPointToTarget(spcs, lineText, cs - 1, 1 - target)
+#             print("Removing " + str(target))
+            cmntPnt = line.a + cs
+            remR = sublime.Region(cmntPnt + target, cmntPnt)
             vw.replace(edit, remR, "")
           elif target > 0 :
-            # print("> " + str(target))
-            count = (target - 1) / spcs
+#             print("> {}, {}, {}".format(column, c, target))
+            count = int((target - 1 + (spcs - 1)) / spcs)
+#             print("spces {}, cnt {}".format(spcs, count))
 
             #Insert number of tabs needed to reach target.
-            strng = "\t" * int(count)
+            strng = "\t" * count
             vw.insert(edit, line.a + rcomment, strng)
-          if fst :
-            # Place the cursor at the end of the comment tag on the 1st line.
-            # Have to take into account how many chars were added to the current
-            # comment position as well as the length of the comment tag.
-            fstColumn = vw.line(s).a + rcomment + count + len(cmnt)
-            fst = False
 
-      #add // and move the cursor to the end of the line.
+      # Now that we are done move to the 1st comment in 1st line of the selection.
+      line = vw.line(vw.sel()[0].begin())
+      lineText = vw.substr(line)
+      rcomment = lineText.rfind(cmnt)
+      p = line.begin() + rcomment + len(cmnt)
+#       print("{}, {}, {}, {}".format(first, rcomment, p, lineText))
+
+      #add comment tag and move the cursor to the end of the line.
       vw.sel().clear()
-      vw.sel().add(sublime.Region(fstColumn, fstColumn))
+      vw.sel().add(sublime.Region(p, p))
 
 class ShowFileNameCommand( sublime_plugin.TextCommand ) :
   def run( self, edit ) :
@@ -450,6 +483,20 @@ class ShowFileNameCommand( sublime_plugin.TextCommand ) :
 
   def TurnOff( self ) :
     self.view.erase_status("fname")
+
+class MyPickFileCommand( sublime_plugin.WindowCommand ) :
+  '''Show list of files to pick from'''
+
+  def run( self ) :
+    #get list from settngs.
+    items = mu_settings.get("slots", [""])
+    #function to call on selection.
+    def done( index ) :
+      if index >= 0 :
+        self.window.open_file(items[index])
+
+    #open a selection prompt
+    self.window.show_quick_panel(items, done)
 
 class ShowProjectNameCommand( sublime_plugin.WindowCommand ) :
   def run( self ) :
@@ -625,35 +672,33 @@ def is_ws(str):
     return True
 
 class BlockLinesCommand(sublime_plugin.TextCommand) :
-  def run(self, edit) :
+  '''Add { } around and indent all selected lines.'''
+  def run(self, edit, indented = False ) :
     vw = self.view
     sels = vw.sel()
+    ts = GetTabSize(vw)
     for s in sels :
-      if s.empty() :
-        _, c = vw.rowcol(s.a)  #Get the column so we can place the } correctly.
-        l = vw.full_line(s)
-        ss = vw.substr(l)
-        #if not on empty line add 1.
-        if (len(ss) > 1) :
-          vw.insert(edit, s.a, "\n\t")
-        vw.insert(edit, s.a, "{")
+      if (indented):
+        s = vw.indented_region(s.a)
 
-        #Loop until we hit an empty line.
-        while True :
-          p = l.b + 1
-          #Make sure we stop at end of file.
-          if p < vw.size() :
-            l = vw.full_line(p)
-            ss = vw.substr(l)
-          else :
-            l = sublime.Region(p, p)
-            ss = ""
-          #If line is emtpy then insert the }
-          if len(ss) <= 1 :
-            ins = ("\t" * c) + "}\n"
-            vw.insert(edit, l.a, ins)
-            break
-          vw.insert(edit, l.a, "\t") #Indent.
+      c = vw.indentation_level(s.a)
+      ls = vw.lines(s)
+      fl = vw.full_line(ls[-1])
+      indtext = '\t' * c
+      vw.insert(edit, fl.end(), indtext + "}\n")
+      for l in ls[::-1] :
+        st = vw.substr(l)
+        vw.replace(edit, l, "\t" + st)
+
+      #if indenting a whole indentation block sel is at beginning of line
+      # so add tabs fst.  Otherwise the cursor is at the tab position so
+      # add them last so they are applied to the next line.
+      if indented :
+        begtext = indtext + "{\n"
+      else:
+        begtext = "{\n" + indtext
+
+      vw.insert(edit, s.a, begtext)
 
 class TestIndentCommand( sublime_plugin.TextCommand ) :
   def run( self, edit ) :
