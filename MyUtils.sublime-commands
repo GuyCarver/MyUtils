@@ -4,6 +4,9 @@
 	{ "command": "set_class_name", "caption": "MyUtils: SetClassName" },
 	{ "command": "swap_words", "caption": "MyUtils: SwapWords" },
 	{ "command": "my_pick_file", "caption": "MyUtils: PickFile" },
+	{ "command": "print_file", "caption": "MyUtils: PrintFile" },
 	{ "command": "toggle_read_only", "caption": "MyUtils: ToggleReadOnly" },
+	{ "command": "run_macro_file", "args": {"file": "Packages/User/newinclude.sublime-macro"}, "caption": "MyUtils: NewInclude" },
+	{ "command": "author_owner", "caption": "MyUtils: AuthorOwner" },
 	{ "command": "show_routines", "caption": "MyUtils: ShowRoutines" }
 ]

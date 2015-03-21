@@ -6,7 +6,6 @@
 	{ "keys": ["ctrl+f12"], "command": "open_my_file", "args": {"file": "C:/Users/gcarver/OneDrive/notes.ida"} },
 	{ "keys": ["ctrl+shift+f12"], "command": "open_my_file", "args": {"file": "u:/notes.ida"} },
 	{ "keys": ["ctrl+shift+g"], "command": "show_routines" },
-	{ "keys": ["shift+browser_favorites"], "command": "show_routines" },
 	{ "keys": ["shift+f12"], "command": "pick_open_files" },
 	{ "keys": ["ctrl+k", "a"], "command": "get_class_name" },
 	{ "keys": ["ctrl+shift+a"], "command": "get_class_name" },
@@ -15,9 +14,18 @@
 	{ "keys": ["ctrl+k", "r"], "command": "toggle_read_only" },
 	{ "keys": ["ctrl+k", "u"], "command": "toggle_read_only", "args": {"update": true} },
 	{ "keys": ["ctrl+k", "s"], "command": "swap_words" },
+	{ "keys": ["ctrl+k", "enter"], "command": "copyand_comment" },
 	{ "keys": ["ctrl+;"], "command": "semicolon_end" },
 	{ "keys": ["ctrl+/"], "command": "comment_eol" },
 	{ "keys": ["alt+shift+/"], "command": "copyand_comment" },
 	{ "keys": ["ctrl+p"], "command": "show_project_name" },
-	{ "keys": ["ctrl+f"], "command": "show_file_name" }
+	{ "keys": ["ctrl+f"], "command": "show_file_name" },
+	{ "keys": ["{"], "command": "block_lines", "context":
+		[
+			{ "key": "setting.auto_match_enabled", "operator": "equal", "operand": true },
+			{ "key": "selection_empty", "operator": "equal", "operand": false, "match_all": true }
+		]
+	},
+	{ "keys": ["alt+shift+["], "command": "block_lines" },
+	{ "keys": ["ctrl+shift+["], "command": "block_lines", "args": {"indented": true} }
 ]

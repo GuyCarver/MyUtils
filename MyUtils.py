@@ -677,6 +677,7 @@ class BlockLinesCommand(sublime_plugin.TextCommand) :
     vw = self.view
     sels = vw.sel()
     ts = GetTabSize(vw)
+    cmnt = GetComment(vw)
     for s in sels :
       if (indented):
         s = vw.indented_region(s.a)
@@ -688,7 +689,8 @@ class BlockLinesCommand(sublime_plugin.TextCommand) :
       vw.insert(edit, fl.end(), indtext + "}\n")
       for l in ls[::-1] :
         st = vw.substr(l)
-        vw.replace(edit, l, "\t" + st)
+        if not (st.startswith(cmnt) or st.startswith('#')) :
+          vw.replace(edit, l, "\t" + st)
 
       #if indenting a whole indentation block sel is at beginning of line
       # so add tabs fst.  Otherwise the cursor is at the tab position so
@@ -751,66 +753,75 @@ class TestIndentCommand( sublime_plugin.TextCommand ) :
     return False
 
 def indented_block(view, r):
-    if r.empty():
-        nl = next_line(view, r.a)
-        nr = view.indented_region(nl)
-        if nr.a < nl:
-            nr.a = nl
+  if r.empty():
+    nl = next_line(view, r.a)
+    nr = view.indented_region(nl)
+    if nr.a < nl:
+        nr.a = nl
 
-        this_indent = view.indentation_level(r.a)
-        next_indent = view.indentation_level(nl)
+    this_indent = view.indentation_level(r.a)
+    next_indent = view.indentation_level(nl)
 
-        ok = False
+    ok = False
 
-        if this_indent + 1 == next_indent:
-            ok = True
+    if this_indent + 1 == next_indent:
+      ok = True
 
-        if not ok:
-            prev_indent = view.indentation_level(prev_line(view, r.a))
+    if not ok:
+      prev_indent = view.indentation_level(prev_line(view, r.a))
 
-            # Mostly handle the care where the user has just pressed enter, and the
-            # auto indent will update the indentation to something that will trigger
-            # the block behavior when { is pressed
-            line_str = view.substr(view.line(r.a))
-            if is_ws(line_str) and len(view.get_regions("autows")) > 0:
-                if prev_indent + 1 == this_indent and this_indent == next_indent:
-                    ok = True
+      # Mostly handle the care where the user has just pressed enter, and the
+      # auto indent will update the indentation to something that will trigger
+      # the block behavior when { is pressed
+      line_str = view.substr(view.line(r.a))
+      if is_ws(line_str) and len(view.get_regions("autows")) > 0:
+        if prev_indent + 1 == this_indent and this_indent == next_indent:
+          ok = True
 
-        if ok:
-            # ensure that every line of nr is indented more than nl
-            l = next_line(view, nr)
-            while l < nr.end():
-                if view.indentation_level(l) == next_indent:
-                    return False
-                l = next_line(view, l)
-            return True
+    if ok:
+      # ensure that every line of nr is indented more than nl
+      l = next_line(view, nr)
+      while l < nr.end():
+        if view.indentation_level(l) == next_indent:
+          return False
+        l = next_line(view, l)
+      return True
 
-    return False
+  return False
+
+class PrintFileCommand( sublime_plugin.TextCommand ) :
+  def run( self, edit ) :
+    vw = self.view
+    fname = vw.file_name()
+    if fname:
+      ex = '"%ProgramFiles%/Windows NT/Accessories/WORDPAD.EXE" /p "' + fname + '"'
+#      print(ex)
+      vw.window().run_command("exec", {"shell_cmd": ex})
 
 class MyBlockContext(sublime_plugin.EventListener):
-    def on_query_context(self, view, key, operator, operand, match_all):
-        if key == "myindented_block":
-            is_all = True
-            is_any = False
+  def on_query_context(self, view, key, operator, operand, match_all):
+    if key == "myindented_block":
+      is_all = True
+      is_any = False
 
-            if operator != sublime.OP_EQUAL and operator != sublime.OP_NOT_EQUAL:
-                return False
+      if operator != sublime.OP_EQUAL and operator != sublime.OP_NOT_EQUAL:
+        return False
 
-            for r in view.sel():
-                if operator == sublime.OP_EQUAL:
-                    b = (operand == indented_block(view, r))
-                else:
-                    b = (operand != indented_block(view, r))
+      for r in view.sel():
+        if operator == sublime.OP_EQUAL:
+          b = (operand == indented_block(view, r))
+        else:
+          b = (operand != indented_block(view, r))
 
-                if b:
-                    is_any = True
-                else:
-                    is_all = False
+        if b:
+          is_any = True
+        else:
+          is_all = False
 
-            if match_all:
-                return is_all
-            else:
-                return is_any
+      if match_all:
+        return is_all
+      else:
+        return is_any
 
-        return None
+    return None
 
