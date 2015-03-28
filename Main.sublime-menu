@@ -1,0 +1,59 @@
+[
+    {
+        "id": "preferences",
+        "children":
+        [
+            {
+                "caption": "Package Settings",
+                "mnemonic": "P",
+                "id": "package-settings",
+                "children":
+                [
+                    {
+                        "caption": "MyUtils",
+                        "children":
+                        [
+                            {
+                                "command": "open_file", "args":
+                                {
+                                    "file": "${packages}/MyUtils/MyUtils.sublime-settings"
+                                },
+                                "caption": "Settings – Default"
+                            },
+                            {
+                                "command": "open_file", "args":
+                                {
+                                    "file": "${packages}/User/MyUtils.sublime-settings"
+                                },
+                                "caption": "Settings – User"
+                            },
+                            { "caption": "-" },
+                            {
+                                "command": "open_file",
+                                "args": {
+                                    "file": "${packages}/MyUtils/Default (Windows).sublime-keymap",
+                                    "platform": "Windows"
+                                },
+                                "caption": "Key Bindings – Default"
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "id": "help",
+        "children":
+        [
+            {
+                "command": "open_file", "args":
+                {
+                    "file": "${packages}/MyUtils/README.md",
+                    "platform": "Windows"
+                },
+                "caption": "MyUtils"
+            }
+        ]
+    }
+]
