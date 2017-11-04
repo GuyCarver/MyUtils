@@ -68,9 +68,14 @@ class SetClassNameCommand( sublime_plugin.TextCommand ) :
     dicts = prefs.getElementsByTagName("dict")
     vt = FindValueTag(dicts, "TM_CLASS")
     if vt :
-#      print("found entry and setting to " + str(aName))
-#      print(vt.childNodes)
-      vt.childNodes[0].data = aName
+      print("found entry and setting to " + str(aName))
+      print(vt.childNodes)
+      if len(vt.childNodes) > 0 :
+        vt.childNodes[0].data = aName
+      else:
+        ne = prefs.createTextNode(aName)
+        vt.appendChild(ne);
+
       file = open(fileName, "w")
       prefs.writexml(file)
       file.close()
@@ -81,6 +86,13 @@ class SetClassNameCommand( sublime_plugin.TextCommand ) :
     word = vw.word(sel)
     className = vw.substr(word)
     self.SetIt(className)
+
+class ShowScopeCommand( sublime_plugin.TextCommand ) :
+  def run( self, edit ) :
+    print("Showing Scope.\n")
+    sels = self.view.sel()
+    name = self.view.scope_name(sels[0].begin())
+    print("Scope: " + name)
 
 class GetClassNameCommand( sublime_plugin.TextCommand ) :
   def run( self, edit ) :
@@ -274,7 +286,11 @@ class ShowRoutinesCommand( sublime_plugin.TextCommand ) :
     if last :
       beginRegion = sublime.Region(0, 0)
       #create a region to start at the beginning of the file.
-      folds = [ NewRegion(vw, beginRegion, regions[0]) ]
+      if regions[0].begin() > 1 :
+        folds = [ NewRegion(vw, beginRegion, regions[0]) ]
+      else:
+        folds = []
+
       folds = folds + [ NewRegion(vw, regions[i - 1], regions[i])
         for i in range(1, last) ]
 
@@ -676,31 +692,37 @@ class BlockLinesCommand(sublime_plugin.TextCommand) :
   def run(self, edit, indented = False ) :
     vw = self.view
     sels = vw.sel()
-    ts = GetTabSize(vw)
-    cmnt = GetComment(vw)
+    ts = GetTabSize(vw)   #Get tab size.
+    cmnt = GetComment(vw) #Get comment text.
     for s in sels :
-      if (indented):
+      if (indented):      #If we want the indented region select it.
         s = vw.indented_region(s.a)
 
       c = vw.indentation_level(s.a)
+      #{} go 1 indentation level less.
+      if indented :
+        c = max(0, c - 1)
       ls = vw.lines(s)
       fl = vw.full_line(ls[-1])
       indtext = '\t' * c
       vw.insert(edit, fl.end(), indtext + "}\n")
-      for l in ls[::-1] :
-        st = vw.substr(l)
-        if not (st.startswith(cmnt) or st.startswith('#')) :
-          vw.replace(edit, l, "\t" + st)
+      #if not already indented then insert a tab to indent all lines.
+      if not indented:
+        for l in ls[::-1] : #Process lines backwards.
+          st = vw.substr(l)
+          if not (st.startswith(cmnt) or st.startswith('#')) :
+            vw.replace(edit, l, "\t" + st)
 
       #if indenting a whole indentation block sel is at beginning of line
       # so add tabs fst.  Otherwise the cursor is at the tab position so
       # add them last so they are applied to the next line.
-      if indented :
-        begtext = indtext + "{\n"
-      else:
-        begtext = "{\n" + indtext
+#      if indented :
+      begtext = indtext + "{\n"
+#      else:
+#        begtext = "{\n" + indtext
 
-      vw.insert(edit, s.a, begtext)
+      fl = vw.full_line(s)
+      vw.insert(edit, fl.a, begtext)
 
 class TestIndentCommand( sublime_plugin.TextCommand ) :
   def run( self, edit ) :
@@ -797,6 +819,12 @@ class PrintFileCommand( sublime_plugin.TextCommand ) :
       ex = '"%ProgramFiles%/Windows NT/Accessories/WORDPAD.EXE" /p "' + fname + '"'
 #      print(ex)
       vw.window().run_command("exec", {"shell_cmd": ex})
+
+class ViewsCommand( sublime_plugin.TextCommand ) :
+  def run( self, edit ) :
+    vs = self.view.window().views()
+    for v in vs :
+      print(v.file_name())
 
 class MyBlockContext(sublime_plugin.EventListener):
   def on_query_context(self, view, key, operator, operand, match_all):
