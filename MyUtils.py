@@ -176,7 +176,7 @@ class MakeFunctionCommand( sublime_plugin.TextCommand ) :
       if match != None :
 #        print("fungroups: {}".format(match.groups()))
         grps = match.groups()
-        comline = "///\n///<summary> "
+        comline = "///\n/// <summary> "
         if (grps[0]):
           comline += grps[0].rstrip().upper() + ":"
         comline += " </summary>\n"
@@ -184,9 +184,9 @@ class MakeFunctionCommand( sublime_plugin.TextCommand ) :
           #Add parameters.
           pa = GetParams(grps[5])
           for p in pa :
-            comline += "///<param name=\"" + p + "\">  </param>\n"
+            comline += "/// <param name=\"" + p + "\">  </param>\n"
         if (grps[1] and not grps[1] == "void ") :
-          comline += "///<returns> " + grps[1] + "</returns>\n"
+          comline += "/// <returns> " + grps[1] + "</returns>\n"
         comline += '///\n'
 
         newline = ""
