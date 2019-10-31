@@ -228,6 +228,19 @@ class OpenSelectedFilesCommand( sublime_plugin.TextCommand ) :
         else:
           print("Failed to open " + fname)
 
+class InsertAccentCharCommand( sublime_plugin.TextCommand ) :
+  def run( self, edit ) :
+    accents = ['ñ', 'á', 'é', 'í', 'ó', 'ú']
+
+    def select( aIndex ) :
+      if aIndex != -1 :
+        vw = self.view
+        accent = accents[aIndex]
+        for s in vw.sel() :
+          vw.insert(edit, s.a, accent)
+
+    self.view.show_popup_menu(accents, select)
+
 class MyTestCommand( sublime_plugin.WindowCommand ) :
   def run( self ) :
     for s in self.window.settings() :
@@ -852,4 +865,5 @@ class MyBlockContext(sublime_plugin.EventListener):
         return is_any
 
     return None
+
 
