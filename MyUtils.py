@@ -415,11 +415,12 @@ def GetComment( aView ) :
   if shell_vars :
     for v in shell_vars :
       if v["name"] == "TM_COMMENT_START" :
-        value = v["value"]
-        if value :
-          return value.strip()
+        return v["value"]
 
   return ""
+
+def GetCommentColumn( aView ) :
+  return int(aView.settings().get('comment_column', 49))
 
 class MyToggleCommentCommand( sublime_plugin.TextCommand ) :
 
@@ -444,9 +445,10 @@ class MyToggleCommentCommand( sublime_plugin.TextCommand ) :
 
 class CommentEolCommand( sublime_plugin.TextCommand ) :
 
-  def run( self, edit, column = 49 ) :
+  def run( self, edit ) :
     vw = self.view
-    spcs = GetTabSize(vw);
+    column = GetCommentColumn(vw)
+    spcs = GetTabSize(vw)
     cmnt = GetComment(vw)
 
     for s in vw.sel() :
