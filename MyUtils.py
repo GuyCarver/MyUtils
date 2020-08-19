@@ -467,7 +467,7 @@ class CommentEolCommand( sublime_plugin.TextCommand ) :
 #           print("{} - {} = {}".format(column, c, target))
 
           #Find the end of line and calculate destination column.
-          count = 1 if target <= 0 else (target + spcs - 1) / spcs
+          count = 1 if target <= 0 else (target + spcs - 2) // spcs
 #           print("{} / {} = {}".format(target, spcs, count))
 
           #Insert number of tabs needed to reach target.
