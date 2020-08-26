@@ -550,6 +550,10 @@ class ShowProjectNameCommand( sublime_plugin.WindowCommand ) :
 #     srchvw.insert(myedit, 0, word)
 #     srchvw.end_edit(myedit)
 
+class Set8thSyntax( sublime_plugin.WindowCommand ):
+  def run( self ):
+    self.window.active_view().set_syntax_file("Packages/8th/8th.sublime-syntax")
+
 class AutoSemiColonCommand(sublime_plugin.TextCommand):
     def run(self, edit):
         # Loop through and add the semi colon
