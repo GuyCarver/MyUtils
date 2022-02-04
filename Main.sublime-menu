@@ -1,5 +1,12 @@
 [
     {
+        "id": "view",
+        "children":
+        [
+            {"caption": "Syntax Popup", "command": "toggle_syntax", "checkbox": true }
+        ]
+    },
+    {
         "id": "preferences",
         "children":
         [

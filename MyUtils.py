@@ -34,7 +34,7 @@
 import sublime, sublime_plugin
 from xml.dom.minidom import parse, parseString
 import os, stat, datetime, re
-from Edit.edit import Edit
+# from Edit.edit import Edit
 
 sets_file = "MyUtils.sublime-settings"
 mu_settings = None
@@ -463,11 +463,11 @@ class CommentEolCommand( sublime_plugin.TextCommand ) :
         #if no comment currently on the line then add one.
         if rcomment == -1 :
           cs, c = LineWidth(cmnt, spcs, lineText)
+          c -= c % spcs                         # Round down for correct tab count.
           target = column - c
 #           print("{} - {} = {}".format(column, c, target))
-
           #Find the end of line and calculate destination column.
-          count = 1 if target <= 0 else (target + spcs - 2) // spcs
+          count = 1 if target <= 0 else target // spcs
 #           print("{} / {} = {}".format(target, spcs, count))
 
           #Insert number of tabs needed to reach target.
@@ -478,10 +478,10 @@ class CommentEolCommand( sublime_plugin.TextCommand ) :
           cmntCountStr = lineText[:rcomment]
           #get line pnt, column of comment
           cs, c = LineWidth(cmnt, spcs, cmntCountStr)
-#          print("{} width {}".format(cmntCountStr, c))
+#           print("{} width {}".format(cmntCountStr, c))
           target = column - c
           if target < 0 :
-#            print("< {}, {}, {}".format(column, c, target))
+#             print("< {}, {}, {}".format(column, c, target))
             target = FromPointToTarget(spcs, lineText, cs - 1, 1 - target)
 #             print("Removing " + str(target))
             cmntPnt = line.a + cs
@@ -489,7 +489,7 @@ class CommentEolCommand( sublime_plugin.TextCommand ) :
             vw.replace(edit, remR, "")
           elif target > 0 :
 #             print("> {}, {}, {}".format(column, c, target))
-            count = int((target - 1 + (spcs - 1)) / spcs)
+            count = target // spcs
 #             print("spces {}, cnt {}".format(spcs, count))
 
             #Insert number of tabs needed to reach target.
@@ -501,7 +501,7 @@ class CommentEolCommand( sublime_plugin.TextCommand ) :
       lineText = vw.substr(line)
       rcomment = lineText.rfind(cmnt)
       p = line.begin() + rcomment + len(cmnt)
-#       print("{}, {}, {}, {}".format(first, rcomment, p, lineText))
+#       print("{}, {}, {}".format(rcomment, p, lineText))
 
       #add comment tag and move the cursor to the end of the line.
       vw.sel().clear()
@@ -665,11 +665,10 @@ class SwapWordsCommand( sublime_plugin.TextCommand ) :
         t0 = vw.substr(rr[0])
         t1 = vw.substr(rr[1])
 
-        with Edit(vw) as edit:
-          #Replace last mark 1st.
-          edit.replace(rr[0], t1)
-          #Replace other mark.
-          edit.replace(rr[1], t0)
+        #Replace last mark 1st.
+        vw.replace(edit, rr[0], t1)
+        #Replace other mark.
+        vw.replace(edit, rr[1], t0)
 
     vw.erase_regions("swap")
 
